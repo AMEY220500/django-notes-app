@@ -1,29 +1,50 @@
-@Library('Shared')_
-pipeline{
-    agent { label 'dev-server'}
-    
-    stages{
-        stage("Code clone"){
-            steps{
-                sh "whoami"
-            clone("https://github.com/LondheShubham153/django-notes-app.git","main")
+@Library("Shared") _
+
+pipeline {
+    agent {label 'jenkins-agent'}
+//    agent any
+    stages {
+        stage('Hello'){
+            steps {
+                script {
+                    hello()
+                }
             }
         }
-        stage("Code Build"){
-            steps{
-            dockerbuild("notes-app","latest")
+        stage('Code') {
+            steps {
+                echo 'This is cloning the code'
+                git url: 'https://github.com/AMEY220500/django-notes-app/', branch:'main'
+                echo 'Code cloned successfully'
             }
         }
-        stage("Push to DockerHub"){
-            steps{
-                dockerpush("dockerHubCreds","notes-app","latest")
+        stage('Build') {
+            steps {
+                echo 'This is building the code'
+                sh 'docker build -t notes-app:latest .'
             }
         }
-        stage("Deploy"){
-            steps{
-                deploy()
+        stage('Push to DockerHub') {
+            steps {
+                echo 'Pushing to Dockerhub'
+                withCredentials([
+                     usernamePassword(
+                     credentialsId: 'docker-hub',
+                     usernameVariable: 'DOCKER_USER',
+                     passwordVariable: 'DOCKER_PASS'
+                     )
+                ]){
+                sh "docker login -u ${env.DOCKER_USER} -p ${env.DOCKER_PASS}"
+                sh "docker image tag notes-app:latest ${env.DOCKER_USER}/notes-app:latest"
+                sh "docker push ${env.DOCKER_USER}/notes-app:latest"
+                }
+                  }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'This is deploying the code'
+                sh 'docker compose up -d'
             }
         }
-        
     }
 }
